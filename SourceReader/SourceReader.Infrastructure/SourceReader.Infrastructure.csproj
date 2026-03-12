@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="LiteDb\" />
+    <Folder Include="VectorDb\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LiteDB" Version="5.0.21" />
+    <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.3.0" />
+    <PackageReference Include="OllamaSharp" Version="5.4.23" />
+    <PackageReference Include="TreeSitter" Version="1.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SourceReader.Core\SourceReader.Core.csproj" />
+    <ProjectReference Include="..\SourceReader.Shared\SourceReader.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

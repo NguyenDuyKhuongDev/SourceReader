@@ -1,0 +1,6 @@
+@SourceReader.API_HostAddress = http://localhost:5204
+
+GET {{SourceReader.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

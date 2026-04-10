@@ -1,4 +1,6 @@
 ﻿using SourceReader.Core.Models;
+using SourceReader.Core.Models.MetaData.PartOfFile;
+using SourceReader.Infrastructure.Analysis.SymbolAnalysis;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,14 +12,14 @@ namespace SourceReader.Infrastructure.Analysis.SemanticChunk
 {
     public class SemanticChunkExtractor
     {
-        public static List<CodeMetadata> Extract(Node root, string content, string file)
+        public static List<CodeChunk> Extract(Node root, string content, string file)
         {
-            var result = new List<CodeMetadata>();
+            var result = new List<CodeChunk>();
             Walk(root, content, file,result, null);
             return result;
         }
 
-    private static void Walk(Node node, string content, string file, List<CodeMetadata> result, string? currentNamespace)
+    private static void Walk(Node node, string content, string file, List<CodeChunk> result, string? currentNamespace)
         {
             if (node.Kind == "namespace_declaration")
             {
@@ -29,14 +31,14 @@ namespace SourceReader.Infrastructure.Analysis.SemanticChunk
 
                 var text = content.Substring(node.StartByte, node.EndByte - node.StartByte);
 
-                result.Add(new CodeMetadata {
+                result.Add(new CodeChunk{
                     FilePath = file,
                     SymbolType = node.Kind,
                     SymbolName = name,
                     NameSpace = currentNamespace,
                     Content = text,
-                    StartLine = node.StartPosition.Row,
-                    EndLine = node.EndPosition.Row,
+                    StartLine = node.StartPosition.Row.ToString(),
+                    EndLine = node.EndPosition.Row.ToString(),
                 });
             }
             for (int i = 0; i < node.ChildCount; i++) {

@@ -8,7 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="LiteDb\" />
+    <Folder Include="Analysis\DependencyEdgeAnalysis\" />
+    <Folder Include="Analysis\CallEdgeAnalysis\" />
     <Folder Include="VectorDb\" />
   </ItemGroup>
 

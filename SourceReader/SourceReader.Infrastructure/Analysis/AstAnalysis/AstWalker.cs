@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TreeSitter;
 
-namespace SourceReader.Infrastructure.Analysis
+namespace SourceReader.Infrastructure.Analysis.Ast
 {
     public class AstWalker
     {

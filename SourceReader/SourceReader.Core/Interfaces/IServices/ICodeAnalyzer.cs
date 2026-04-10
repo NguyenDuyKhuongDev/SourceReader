@@ -1,4 +1,4 @@
-﻿using SourceReader.Core.Models;
+﻿using SourceReader.Core.Models.MetaData.PartOfFile;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +9,6 @@ namespace SourceReader.Core.Interfaces.IServices
 {
     public interface ICodeAnalyzer 
     {
-        public Task<List<CodeMetadata>> AnalyzeProjectAsync(string projectPath);
+        public Task<List<CodeChunk>> AnalyzeProjectAsync(string projectPath);
     }
 }

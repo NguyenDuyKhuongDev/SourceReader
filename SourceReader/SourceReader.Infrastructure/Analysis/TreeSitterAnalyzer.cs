@@ -1,5 +1,5 @@
 ﻿using SourceReader.Core.Interfaces.IServices;
-using SourceReader.Core.Models;
+using SourceReader.Core.Models.MetaData.PartOfFile;
 using SourceReader.Infrastructure.Analysis.SemanticChunk;
 using System;
 using System.Collections.Generic;
@@ -15,7 +15,7 @@ namespace SourceReader.Infrastructure.Analysis
     public class TreeSitterAnalyzer : ICodeAnalyzer
     {
         private readonly LanguageLoader _languageLoader = new();
-        public async Task<List<CodeMetadata>> AnalyzeFileAsync(string filePath, string content)
+        public async Task<List<CodeChunk>> AnalyzeFileAsync(string filePath, string content)
         {
             var ext = Path.GetExtension(filePath);
             var langId = ext switch
@@ -37,9 +37,9 @@ namespace SourceReader.Infrastructure.Analysis
             return SemanticChunkExtractor.Extract(root, content, filePath);
         }
 
-        public async Task<List<CodeMetadata>> AnalyzeProjectAsync(string projectPath)
+        public async Task<List<CodeChunk>> AnalyzeProjectAsync(string projectPath)
         {
-            var result = new List<CodeMetadata>();
+            var result = new List<CodeChunk>();
 
             var files = Directory.GetFiles(projectPath, "*.*", SearchOption.AllDirectories);
             foreach (var file in files)

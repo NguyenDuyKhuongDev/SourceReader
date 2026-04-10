@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TreeSitter;
 
-namespace SourceReader.Infrastructure.Analysis.SemanticChunk
+namespace SourceReader.Infrastructure.Analysis.SymbolAnalysis
 {
     public class SymbolResolver
     {

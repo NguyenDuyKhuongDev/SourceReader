@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace SourceReader.Core.Models
 {
-    public class UserCustomizeinfo
+ /*   public class UserCustomizeinfo
     {
-        public UserLevel Level { get; set; }
+        public UserLevel Level { get; set;}
         public 
-    }
+    }*/
 }

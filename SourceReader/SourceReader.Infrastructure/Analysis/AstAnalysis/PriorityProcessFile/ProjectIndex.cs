@@ -11,8 +11,17 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile.D
         [property: Key(0)] public string Root { get; set; } = "";
         [property: Key(1)] public Dictionary<int, SRFileRecord> Files { get; set; } = new();
         [property: Key(2)] public Dictionary<int, SRImportRecord> Imports { get; set; } = new();
+        /// <summary>
+        /// src => target[] , key: sourceId - value : list of targertId that source file imports
+        /// </summary>
         [property: Key(3)] public Dictionary<int, List<int>> OutEdge { get; set; } = new();
+        /// <summary>
+        /// target => src[] , key : targetId(file that is be imported) - value: list of sourceId (file that import target file)
+        /// </summary>
         [property: Key(4)] public Dictionary<int, List<int>> InEdge { get; set; } = new();
+        /// <summary>
+        /// key: File Path - value: File Id
+        /// </summary>
         [property: Key(5)] public Dictionary<string, int> PathToId { get; set; } = new();
     }
 
@@ -36,6 +45,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile.D
     [MessagePackObject]
     public partial record SRImportRecord
     {
+        // not the id of the imported file , but the id of the import statement
         [property: Key(0)] public int ImportId { get; set; }
         /// <summary>
         /// the file that the import statement is in
@@ -51,7 +61,8 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile.D
 
     public record ProjectDiff(
         List<int> Deleted,
-        List<int> Added,
+        // because new file may not have id yet, so i store file path here
+        List<string> Added,
         List<int> Modified
         )
     {

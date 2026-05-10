@@ -138,7 +138,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
             CancellationToken ct)
         {
             //!!! cần tối ưu vì đang đọc full file trong khi nên chỉ đọc khoảng n dòng đầu tiên
-            var content = await File.ReadAllTextAsync(file.FullName, ct);
+            var content = await ReadHeaderFile(file.FullName, ct);
             //match ~ 1 dòng import text trùng với regex
             //match[0] là bao gồm cả phần text impor nên skip
             // do regex có nhiều loại import mà match sẽ được ánh xạ tới chung tất các các group nên chỉ lấy group nào có sucess = true là được kết quả ra là group[1] hoặc group[2]..vv ~ nội dung đường dẫn raw của import.
@@ -153,6 +153,35 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
             }
         }
 
+        /// <summary>
+        /// Read n lines of file from the top (n = param maxHeadLine)
+        /// </summary>
+        /// <param name="path"></param>
+        /// <param name="ct"></param>
+        /// <param name="maxHeadLine"></param>
+        /// <returns></returns>
+        private static async Task<string> ReadHeaderFile(
+            string path,
+            CancellationToken ct,
+            int maxHeadLine = 50)
+        {
+            string? line;
+            var sb = new StringBuilder();
+            using var reader = new StreamReader(path);
+
+            for (int i = 0; i < maxHeadLine; i++)
+            {
+                line = await reader.ReadLineAsync(ct);
+                if (line is null) break;
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    sb.AppendLine(line);
+                }
+            }
+
+            return sb.ToString();
+        }
+
         #endregion
         #region Helpers method for Phase 2
 
@@ -162,6 +191,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
             int nextImportId = 1
             )
         {
+            // in here accept that import may be be wrong type determine external or internal but it doesnt need 100% accuracy , this limit can be acceptable at some point
             foreach (var (sourceId, rawPath) in tempImports)
             {
                 //remove file name from file path to get source dir
@@ -172,7 +202,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
                 var isExternal = !rawPath.StartsWith("./") &&
                                  !rawPath.StartsWith("../");
 
-                int ? targetFileId = isExternal ? null : ResolveImport(sourceDir, rawPath, index.PathToId);
+                int? targetFileId = isExternal ? null : ResolveImport(sourceDir, rawPath, index.PathToId);
 
                 var importId = nextImportId++;
                 index.Imports[importId] = new SRImportRecord
@@ -288,7 +318,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
         /// </summary>
         /// <param name="cached"></param>
         /// <returns></returns>
-        private static ProjectDiff DetectsChanges(ProjectIndex cached)
+        private ProjectDiff DetectsChanges(ProjectIndex cached)
         {
             var deleted = new ConcurrentBag<int>();
             var modified = new ConcurrentBag<int>();
@@ -302,8 +332,8 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
             });
 
             var existingPath = cached.PathToId.Keys.ToHashSet();
-            var allFilePathInDir = Directory.GetFiles(cached.Root, "*", SearchOption.AllDirectories);
-            var added = allFilePathInDir
+            var allFilePathInDirValid = GetPathValid();
+            var added = allFilePathInDirValid
                .Where(p => !existingPath.Contains(p))
                .ToList();
 
@@ -382,6 +412,20 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
                   .ToList();
             return file;
         }
+
+        /// <summary>
+        /// get File path that is not in ignored directory and have size that not too small and too big
+        /// </summary>
+        /// <returns></returns>
+        private List<string> GetPathValid()
+        {
+            var path = Directory
+                  .GetFiles(root, "*.*", SearchOption.AllDirectories)
+                  .Where(f => !f.Split(Path.DirectorySeparatorChar)
+                              .Any(p => ignored.Contains(p)))
+                  .ToList();
+            return path;
+        }
         /// <summary>
         /// Rescan file after detect modified or added, have the same execute logic with phase 1 in full scann but for specific file list add and updated
         /// </summary>
@@ -405,8 +449,9 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
                 var fileInfo = new FileInfo(path);
 
                 if (!fileInfo.Exists ||
-                    fileInfo.Length is > MaxFileSizeValid
-                    or < MinFileSizeValid) continue;
+                    fileInfo.Length is
+                    (> MaxFileSizeValid or < MinFileSizeValid)
+                    ) continue;
 
                 var fileId = index.PathToId.TryGetValue(path, out var exsitingId)
                     ? exsitingId : nextFileId++;

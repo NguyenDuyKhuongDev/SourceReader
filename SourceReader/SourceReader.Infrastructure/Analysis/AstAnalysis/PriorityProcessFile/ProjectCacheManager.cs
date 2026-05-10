@@ -74,7 +74,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
 
             // ignore all file contains  ignored pattern in directory and filter size file
             var file = GetFileValid();
-            if (file is null) return index;
+            if (file.Count == 0) return index;
 
             //Phase 1: đọc tất cả các file, tạo FileRecord và RecordImport thô
             var tempImport = new List<(int sourceId, string rawPath)>();
@@ -164,22 +164,15 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
         {
             foreach (var (sourceId, rawPath) in tempImports)
             {
+                //remove file name from file path to get source dir
+                //exp: src/main/app.js -> src/main
+                var sourceDir = Path.GetDirectoryName(index.Files[sourceId].FilePath)!;
+
                 //đã bao quát được hết các trường hợp chưa?
                 var isExternal = !rawPath.StartsWith("./") &&
-                                 !rawPath.StartsWith("../") &&
-                                 !index.PathToId.Keys.Any(p =>
-                                 p.Contains(rawPath.Replace('.',Path.DirectorySeparatorChar)));
+                                 !rawPath.StartsWith("../");
 
-                int? targetFileId = null;
-                if (!isExternal)
-                {
-                    //remove file name from file path to get source dir
-                    //exp: src/main/app.js -> src/main
-                    var sourceDir = Path.GetDirectoryName(index.Files[sourceId].FilePath)!;
-                    // return importfileid if it exist in project, return null if not 
-                    var resolved = ResolveImport(sourceDir, rawPath, index.PathToId);
-                    targetFileId = resolved;
-                }
+                int ? targetFileId = isExternal ? null : ResolveImport(sourceDir, rawPath, index.PathToId);
 
                 var importId = nextImportId++;
                 index.Imports[importId] = new SRImportRecord
@@ -221,6 +214,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
             listSourceId.Add(sourceId);
         }
         #endregion
+
         /// <summary>
         /// Update project index when detect changes
         /// </summary>
@@ -377,7 +371,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
         /// get File that is not in ignored directory and have size that not too small and too big
         /// </summary>
         /// <returns></returns>
-        private List<FileInfo>? GetFileValid()
+        private List<FileInfo> GetFileValid()
         {
             var file = Directory
                   .GetFiles(root, "*.*", SearchOption.AllDirectories)
@@ -388,6 +382,13 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
                   .ToList();
             return file;
         }
+        /// <summary>
+        /// Rescan file after detect modified or added, have the same execute logic with phase 1 in full scann but for specific file list add and updated
+        /// </summary>
+        /// <param name="index"></param>
+        /// <param name="pathList"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
         private async Task ReScanFileAsync(
             ProjectIndex index,
             List<string> pathList,

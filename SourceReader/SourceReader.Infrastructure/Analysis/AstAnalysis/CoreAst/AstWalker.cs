@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace SourceReader.Infrastructure.Analysis.Ast
+namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
 {
     public class AstWalker
     {

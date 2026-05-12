@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile.DataModel
+namespace SourceReader.Infrastructure.DataModel
 {
     [MessagePackObject]
     public class ProjectIndex

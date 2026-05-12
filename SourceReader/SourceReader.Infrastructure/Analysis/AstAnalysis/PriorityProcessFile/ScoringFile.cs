@@ -1,4 +1,4 @@
-﻿using SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile.DataModel;
+﻿using SourceReader.Infrastructure.DataModel;
 using System;
 using System.Collections.Generic;
 using System.Text;

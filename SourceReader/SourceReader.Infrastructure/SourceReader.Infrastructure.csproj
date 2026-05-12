@@ -10,6 +10,7 @@
   <ItemGroup>
     <Folder Include="Analysis\DependencyGraph\" />
     <Folder Include="Analysis\CallGraph\" />
+    <Folder Include="Analysis\SymbolAnalysis\CoreSymbol\" />
     <Folder Include="VectorDb\" />
   </ItemGroup>
 

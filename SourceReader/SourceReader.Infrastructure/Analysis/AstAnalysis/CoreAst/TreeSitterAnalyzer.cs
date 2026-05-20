@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using TreeSitter;
 using static System.Net.Mime.MediaTypeNames;
 
-namespace SourceReader.Infrastructure.Analysis
+namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
 {
     public class TreeSitterAnalyzer : ICodeAnalyzer
     {

@@ -14,7 +14,7 @@ class User:
     pass
 """;
 
-        var parser = new Parser();
+        var parser = new Treesitter.();
 
         parser.Language = LanguagePack.GetLanguage("python");
 

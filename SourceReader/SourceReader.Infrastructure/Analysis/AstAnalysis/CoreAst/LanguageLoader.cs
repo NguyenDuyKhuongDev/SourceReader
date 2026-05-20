@@ -4,19 +4,35 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using TreeSitter;
 
 namespace SourceReader.Infrastructure.Analysis
 {
+    /// <summary>
+    /// create language , parser and handle the exception when loading failed
+    /// </summary>
     public static class LanguageLoader
     {
-        private readonly static Dictionary<string,string> _LanguagesSupported = new Dictionary<string,string>() {
-        
-        }
-        public static void LoadLanguage(string extension)
+
+        /// <summary>
+        ///  load native grammar DLL of language
+        /// </summary>
+        /// <param name="languageName"></param>
+        /// <returns></returns>
+        public static (Language lang, Parser parser)? TryLoadLanguage(string languageName)
         {
+            try
+            {
+                var lang = new Language(languageName);
+                var parser = new Parser(lang);
 
+                return (lang, parser);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Lang] cannot load language {languageName}: Message: {ex.Message}");
+                return null;
+            }
         }
-
-
     }
 }

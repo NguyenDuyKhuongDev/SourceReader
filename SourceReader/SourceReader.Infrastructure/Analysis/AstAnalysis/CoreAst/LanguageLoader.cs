@@ -19,14 +19,14 @@ namespace SourceReader.Infrastructure.Analysis
         /// </summary>
         /// <param name="languageName"></param>
         /// <returns></returns>
-        public static (Language lang, Parser parser)? TryLoadLanguage(string languageName)
+        public static Language? TryLoadLanguage(string languageName)
         {
             try
             {
                 var lang = new Language(languageName);
                 var parser = new Parser(lang);
 
-                return (lang, parser);
+                return lang;
             }
             catch (Exception ex)
             {

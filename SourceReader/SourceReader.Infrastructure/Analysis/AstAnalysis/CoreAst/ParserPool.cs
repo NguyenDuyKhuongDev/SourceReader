@@ -11,6 +11,15 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
     /// Parser: pooled - to avoid race condition and state corruption when multiple threads use the same parser instance
     /// manage dispose of parser and language to avoid memory leak
     /// </summary>
+
+    /// the hardest part of this class is how to multithread access the resource , not dispose wrong time, not race condition, not memory leak and not overwrite other state.
+
+    /// 5 main problem :
+    /// 1.parser is not thread safe: state of parser can be overwite by onother thread when executing in current thread and cause wrong parsing result or even crash the application
+    ///2.avoid to create too many parser instance ,create limit and reuse
+    ///3. limit number of parser instance for each language to avoid memory leak and performance issue
+    ///4.shut down safety: wait for all parser returned before dispose resouce , dont force dispose (can lead to lost data)
+    ///5. ownership validation : ensure that parser is returned to the true owner poool(language)
     public sealed class ParserPool : IDisposable
     {
         /// <summary>
@@ -32,10 +41,15 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
         private static readonly int MaxParsersPerLanguage = Environment.ProcessorCount;
 
         private readonly ConcurrentDictionary<Parser, byte> _activeParsers = new();
+        //limit number of parser active for each language at the time.
         private readonly ConcurrentDictionary<string, SemaphoreSlim> _languageSemaphore = new();
 
+        //how many parser are currently rented out , used to wait for all parser returned before dispose resource 
         private int _activeRentCount;
         private int _isShuttingDown;
+        // is a flag to indicate that the pool is shutting down, when set to 1, it means the pool is shutting down and no new parser can be rented, and all returned parser will be waited until all parser are returned before dispose resource.
+        //can easyly imagine it like a switch  with 2 state on and off , when allReturned.set() - it's on 
+        // and when allReturned.Reset() it's off  , and the method Wait() is waiting for those signal to work
         private readonly ManualResetEventSlim _allReturned = new(true);
 
 
@@ -50,8 +64,11 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
 
             try
             {
+                //check variable isshuttingdown if it's 1 ~ program is demand to shutdown, so it will avoid othe thread rent a parser.
                 if (Volatile.Read(ref _isShuttingDown) == 1) throw new ObjectDisposedException(nameof(ParserPool));
+                //create safe thread when update value of _activerentcount by zip it into a automic action (because increase is not just 1 step . it's like 3 step like read val of activerentcount then add 1 then write it new val so in multi thread this process can be overwrite by other thread like read or write val of activerentcount at the same time lead to the wrong val of activerentcount - it's call race condition )
                 Interlocked.Increment(ref _activeRentCount);
+                //in case allreturned had  been set() in the past mean there is no parser is renting, so when  the renting process is working again we have to reset it state . 
                 _allReturned.Reset();
                 ThrowIfDisposed();
 
@@ -73,11 +90,12 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
 
                 return new PooledParser(languageName, parser);
             }
-            catch {
-            if(acquired) semaphore.Release();
+            catch
+            {
+                if (acquired) semaphore.Release();
 
                 throw;
-            } 
+            }
 
         }
 
@@ -102,6 +120,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
                 ResetParser(pooledParser.Parser);
                 bag.Add(pooledParser.Parser);
 
+                //check if all  parser are return , allReturnned like a signal to indicate that it's a safe time to dispose , in dispose method have _allreturn.wait - it's waiting for allreturn.set() call. 
                 if (Interlocked.Decrement(ref _activeRentCount) == 0) _allReturned.Set();
             }
             finally
@@ -123,9 +142,13 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
         //clean up parser and language resource to avoid memory leak and set disposed flag to acoid using disposed resource
         public void Dispose()
         {
+            //Interlocked make a actions into atomic action - like 3 step zip in 1 step => no other thread can interupt in the middle of this action
+            //exchange vale ò shuttong down to 1 and return old value of isshutingdown.
             Interlocked.Exchange(ref _isShuttingDown, 1);
+            //waiting for allreturned.set()
             _allReturned.Wait();
 
+            //the first thread call dispose will set dispose flag =1 , and get return is old value of _disposed ussually diferent to 1, so it will continuew , this line is used for  avoid other thread call dispose to , and make it double call.
             if (Interlocked.Exchange(ref _disposed, 1) == 1) return;
             foreach (var bag in _parserPools.Values)
             {

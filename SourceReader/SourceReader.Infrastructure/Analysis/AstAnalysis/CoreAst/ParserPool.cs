@@ -41,16 +41,20 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
         private static readonly int MaxParsersPerLanguage = Environment.ProcessorCount;
 
         private readonly ConcurrentDictionary<Parser, byte> _activeParsers = new();
-        //limit number of parser active for each language at the time.
+        // Limits concurrent rented parsers per language.
+        // Each Rent() acquires one permit.
+        // Permit is released only when parser is returned.
         private readonly ConcurrentDictionary<string, SemaphoreSlim> _languageSemaphore = new();
 
         //how many parser are currently rented out , used to wait for all parser returned before dispose resource 
         private int _activeRentCount;
-        private int _isShuttingDown;
         // is a flag to indicate that the pool is shutting down, when set to 1, it means the pool is shutting down and no new parser can be rented, and all returned parser will be waited until all parser are returned before dispose resource.
+        private int _isShuttingDown;
         //can easyly imagine it like a switch  with 2 state on and off , when allReturned.set() - it's on 
         // and when allReturned.Reset() it's off  , and the method Wait() is waiting for those signal to work
         private readonly ManualResetEventSlim _allReturned = new(true);
+
+        private  readonly object _lifeTimeLock = new();
 
 
         public PooledParser Rent(string languageName)
@@ -64,14 +68,18 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
 
             try
             {
-                //check variable isshuttingdown if it's 1 ~ program is demand to shutdown, so it will avoid othe thread rent a parser.
-                if (Volatile.Read(ref _isShuttingDown) == 1) throw new ObjectDisposedException(nameof(ParserPool));
-                //create safe thread when update value of _activerentcount by zip it into a automic action (because increase is not just 1 step . it's like 3 step like read val of activerentcount then add 1 then write it new val so in multi thread this process can be overwrite by other thread like read or write val of activerentcount at the same time lead to the wrong val of activerentcount - it's call race condition )
-                Interlocked.Increment(ref _activeRentCount);
-                //in case allreturned had  been set() in the past mean there is no parser is renting, so when  the renting process is working again we have to reset it state . 
-                _allReturned.Reset();
-                ThrowIfDisposed();
-
+                lock (_lifeTimeLock)
+                {
+                    //check variable isshuttingdown if it's 1 ~ program is demand to shutdown, so it will avoid othe thread rent a parser.
+                    //Volatile.Read is  used to Ensures memory visibility and acquire ordering semantics., and create a acquire barrier (the order of instruction near line volatile.read will not be reorder by cpu(to optimize performance but it can lead to wrong logic in a multi thread synchrolization) , and this is not lock thread, it's just a local synchronization boundary around this instruction )
+                    //Acquire barrier mean that instruction behind will not be reorder to before this instruction(Volatile.Read)
+                    if (Volatile.Read(ref _isShuttingDown) == 1) throw new ObjectDisposedException(nameof(ParserPool));
+                    //create safe thread when update value of _activerentcount by zip it into a automic action (because increase is not just 1 step . it's like 3 step like read val of activerentcount then add 1 then write it new val so in multi thread this process can be overwrite by other thread like read or write val of activerentcount at the same time lead to the wrong val of activerentcount - it's call race condition )
+                    Interlocked.Increment(ref _activeRentCount);
+                    //in case allreturned had  been set() in the past mean there is no parser is renting, so when  the renting process is working again we have to reset it state . 
+                    _allReturned.Reset();
+                }
+             
                 var bag = _parserPools.GetOrAdd(
                                languageName,
                                _ => new ConcurrentBag<Parser>()
@@ -79,6 +87,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
 
                 if (bag.TryTake(out var parser))
                 {
+                    ResetParser(parser);
                     _activeParsers.TryAdd(parser, 0);
                     return new PooledParser(languageName, parser);
                 }
@@ -92,7 +101,12 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
             }
             catch
             {
+                //relese semaphore in case fail to rent, 
                 if (acquired) semaphore.Release();
+
+                // avoid to leak active rent count when fail to rent 
+                if (Interlocked.Decrement(ref _activeRentCount) == 0)
+                    _allReturned.Set();
 
                 throw;
             }
@@ -105,8 +119,6 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
                     _ => new SemaphoreSlim(MaxParsersPerLanguage));
             try
             {
-                ThrowIfDisposed();
-
                 var bag = _parserPools.GetOrAdd(
                    pooledParser.LanguageName,
                    _ => new ConcurrentBag<Parser>()
@@ -142,9 +154,12 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
         //clean up parser and language resource to avoid memory leak and set disposed flag to acoid using disposed resource
         public void Dispose()
         {
-            //Interlocked make a actions into atomic action - like 3 step zip in 1 step => no other thread can interupt in the middle of this action
-            //exchange vale ò shuttong down to 1 and return old value of isshutingdown.
-            Interlocked.Exchange(ref _isShuttingDown, 1);
+            lock (_lifeTimeLock)
+            {
+                //Interlocked make a actions into atomic action - like 3 step zip in 1 step => no other thread can interupt in the middle of this action
+                //exchange vale ò shuttong down to 1 and return old value of isshutingdown.
+                Interlocked.Exchange(ref _isShuttingDown, 1);
+            }
             //waiting for allreturned.set()
             _allReturned.Wait();
 
@@ -166,14 +181,15 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
             //bc if keep ref to parser and language, even dispose them, they still occupy memory until gc clean up, but if remove ref, they can be collected immediately after dispose
             _parserPools.Clear();
             _languages.Clear();
-            _activeParsers.Clear(); // taij sao ? 
+            _activeParsers.Clear(); 
             _languageSemaphore.Clear();
         }
 
         //avoid using disposed resource 
         private void ThrowIfDisposed()
         {
-            // use volatile read to ensure that the latest value of _disposed is read , cpu will not cache old value of _diposed, and if it is 1, it means the object has been disposed, so throw ObjectDisposedException to prevent using disposed resource
+            // Volatile.Read ensures visibility of the latest synchronized value
+            // according to the .NET memory model.
 
             if (Volatile.Read(ref _disposed) == 1) throw new ObjectDisposedException(nameof(ParserPool));
         }

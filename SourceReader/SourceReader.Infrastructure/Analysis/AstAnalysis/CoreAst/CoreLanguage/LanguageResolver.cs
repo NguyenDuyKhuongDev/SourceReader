@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
+namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreLanguage
 {
     /// <summary>
     /// convert file path to language of file bassed on file extension
@@ -27,13 +27,13 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
                     [".php"] = "PHP",
                 };
 
-        public string? Resolve(string path)
+        public static string? Resolve(string path)
         {
             ExtMap.TryGetValue(Path.GetExtension(path), out var lang);
             return lang;
         }
 
-        public bool IsSupported(string path) {
+        public static bool IsSupported(string path) {
             return Resolve(path) is not null;
         }
     }

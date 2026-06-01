@@ -1,5 +1,6 @@
 ﻿using SourceReader.Core.Interfaces.IServices;
 using SourceReader.Core.Models.MetaData.PartOfFile;
+using SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreLanguage;
 using SourceReader.Infrastructure.Analysis.SemanticChunk;
 using System;
 using System.Collections.Generic;

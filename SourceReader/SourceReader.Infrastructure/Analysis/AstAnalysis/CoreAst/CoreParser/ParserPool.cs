@@ -1,10 +1,11 @@
-﻿using System;
+﻿using SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreLanguage;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
 using TreeSitter;
 
-namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
+namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
 {
     /// <summary>
     /// Language: shared (thread safe)
@@ -57,7 +58,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
         private  readonly object _lifeTimeLock = new();
 
 
-        public PooledParser Rent(string languageName)
+        public SRParser Rent(string languageName)
         {
             bool acquired = false;
 
@@ -89,7 +90,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
                 {
                     ResetParser(parser);
                     _activeParsers.TryAdd(parser, 0);
-                    return new PooledParser(languageName, parser);
+                    return new SRParser(languageName, parser);
                 }
 
                 var language = GetOrLoadLanguage(languageName);
@@ -97,7 +98,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
                 parser.Language = language;
                 _activeParsers.TryAdd(parser, 0);
 
-                return new PooledParser(languageName, parser);
+                return new SRParser(languageName, parser);
             }
             catch
             {
@@ -113,7 +114,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
 
         }
 
-        public void Return(PooledParser pooledParser)
+        public void Return(SRParser pooledParser)
         {
             var semaphore = _languageSemaphore.GetOrAdd(pooledParser.LanguageName,
                     _ => new SemaphoreSlim(MaxParsersPerLanguage));

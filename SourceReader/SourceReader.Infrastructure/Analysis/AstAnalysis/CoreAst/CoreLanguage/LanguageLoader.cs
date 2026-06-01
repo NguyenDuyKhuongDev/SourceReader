@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TreeSitter;
 
-namespace SourceReader.Infrastructure.Analysis
+namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreLanguage
 {
     /// <summary>
     /// create language , parser and handle the exception when loading failed
@@ -19,14 +19,12 @@ namespace SourceReader.Infrastructure.Analysis
         /// </summary>
         /// <param name="languageName"></param>
         /// <returns></returns>
-        public static Language? TryLoadLanguage(string languageName)
+        public static string? TryLoadLanguage(string languageName)
         {
             try
             {
                 var lang = new Language(languageName);
-                var parser = new Parser(lang);
-
-                return lang;
+                return languageName;
             }
             catch (Exception ex)
             {

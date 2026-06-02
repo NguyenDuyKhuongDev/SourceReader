@@ -10,8 +10,9 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
         public Language Language{ get; }
         public Parser Parser { get; set; }
         internal SRParser(
-            Parser parser,
-            Language language)
+            Language language,
+            Parser parser
+            )
         {
             Language = language;
             Parser = parser;

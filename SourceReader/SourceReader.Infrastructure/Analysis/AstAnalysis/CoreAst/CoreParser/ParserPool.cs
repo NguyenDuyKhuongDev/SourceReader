@@ -34,7 +34,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
         private readonly ConcurrentDictionary<string, Language> _languages = new();
 
         //lamnguage - queue of parsers for that language
-        private readonly ConcurrentDictionary<string, ConcurrentBag<Parser>> _parserPools = new();
+        private readonly ConcurrentDictionary<Language, ConcurrentBag<Parser>> _parserPools = new();
 
         //check object is disposed to avoid using disposed resource
         private int _disposed;
@@ -45,7 +45,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
         // Limits concurrent rented parsers per language.
         // Each Rent() acquires one permit.
         // Permit is released only when parser is returned.
-        private readonly ConcurrentDictionary<string, SemaphoreSlim> _languageSemaphore = new();
+        private readonly ConcurrentDictionary<Language, SemaphoreSlim> _languageSemaphore = new();
 
         //how many parser are currently rented out , used to wait for all parser returned before dispose resource 
         private int _activeRentCount;
@@ -62,7 +62,11 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
         {
             bool acquired = false;
 
-            var semaphore = _languageSemaphore.GetOrAdd(languageName,
+            var language = _languages.GetOrAdd(languageName, name => {
+                return LanguageLoader.TryLoadLanguage(name);
+            });
+
+            var semaphore = _languageSemaphore.GetOrAdd(language,
         _ => new SemaphoreSlim(MaxParsersPerLanguage));
             semaphore.Wait();
             acquired = true;
@@ -82,7 +86,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
                 }
              
                 var bag = _parserPools.GetOrAdd(
-                               languageName,
+                               language,
                                _ => new ConcurrentBag<Parser>()
                                );
 
@@ -90,15 +94,14 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
                 {
                     ResetParser(parser);
                     _activeParsers.TryAdd(parser, 0);
-                    return new SRParser(languageName, parser);
+                    return new SRParser(language, parser);
                 }
 
-                var language = GetOrLoadLanguage(languageName);
                 parser = new Parser();
                 parser.Language = language;
                 _activeParsers.TryAdd(parser, 0);
 
-                return new SRParser(languageName, parser);
+                return new SRParser(language, parser);
             }
             catch
             {
@@ -116,12 +119,12 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
 
         public void Return(SRParser pooledParser)
         {
-            var semaphore = _languageSemaphore.GetOrAdd(pooledParser.LanguageName,
+            var semaphore = _languageSemaphore.GetOrAdd(pooledParser.Language,
                     _ => new SemaphoreSlim(MaxParsersPerLanguage));
             try
             {
                 var bag = _parserPools.GetOrAdd(
-                   pooledParser.LanguageName,
+                   pooledParser.Language,
                    _ => new ConcurrentBag<Parser>()
                    );
 

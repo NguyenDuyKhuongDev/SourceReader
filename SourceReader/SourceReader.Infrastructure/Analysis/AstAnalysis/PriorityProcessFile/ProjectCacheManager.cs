@@ -84,7 +84,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
             CreateImportRecord(tempImport, index);
 
             //Phase 3: tính degree, priority score cho mỗi file
-            ScoringFile.CalculateDegree(index);
+            ScoringFile.CalculateFiles(index);
 
             await SaveAsync(index, ct);
             Console.WriteLine($"Scan Completed: {index.Files.Count} files with {index.Imports.Count} imports");

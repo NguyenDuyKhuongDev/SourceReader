@@ -33,7 +33,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
                 var source = await File.ReadAllTextAsync(file.FilePath, ct);
 
                 // tree phải còn sống trong suốt quá trình extract
-                using var tree = poolParser.Parse(source);
+                using var tree = poolParser.Parser(source);
                 if (tree is null)
                 {
                     Console.WriteLine($"[parse] null tree: {file.FileName}");

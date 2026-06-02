@@ -19,17 +19,16 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreLanguage
         /// </summary>
         /// <param name="languageName"></param>
         /// <returns></returns>
-        public static string? TryLoadLanguage(string languageName)
+        public static Language TryLoadLanguage(string languageName)
         {
             try
             {
                 var lang = new Language(languageName);
-                return languageName;
+                return lang;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Lang] cannot load language {languageName}: Message: {ex.Message}");
-                return null;
+                throw new InvalidOperationException($"Failed to load language {languageName}", ex);
             }
         }
     }

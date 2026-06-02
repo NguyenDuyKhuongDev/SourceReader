@@ -7,9 +7,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
 {
     public class ScoringFile
     {
-        public static void CalculateDegree(
-           ProjectIndex index
-           )
+        public static void CalculateFiles(ProjectIndex index)
         {
             var sizes = index.Files.Values.Select(f => (double)f.FileSize).ToList();
             var mean = sizes.Average();
@@ -21,7 +19,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
             foreach (var (id, file) in index.Files)
             {
                 var inDegree = index.InEdge.TryGetValue(id, out var inEdges) ? inEdges.Count : 0;
-                var score = CalcScore(file, inDegree, mean, stdDev);
+                var score = CalcFileScore(file, inDegree, mean, stdDev);
 
                 //with owr đây để tạo bản sao của file record với giá trị inDegree và score mới mà không thay đổi các thuộc tính khác
                 index.Files[id] = file with
@@ -32,7 +30,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
             }
         }
 
-        public static double CalcScore(SRFileRecord file, int inDegree, double mean, double stdDev)
+        public static double CalcFileScore(SRFileRecord file, int inDegree, double mean, double stdDev)
         {
             // file have more file import it => more important
             var s1 = Math.Min(inDegree * 15, 80);
@@ -100,7 +98,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
                 index.Files[id] = file with
                 {
                     InDegree = inDegree,
-                    PriorityScore = CalcScore(file, inDegree, mean, stdDev)
+                    PriorityScore = CalcFileScore(file, inDegree, mean, stdDev)
                 };
             }
         }

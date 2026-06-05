@@ -13,6 +13,12 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
         private readonly ParserPool _parserPool;
         private readonly QueryRegistry _queries;
         private readonly FileParser _parser;
+        private const int BATCH_SIZE = 50;
+
+        // cache results of parssing process
+        private readonly ConcurrentDictionary<int, AstFileResult> _results = new();
+        // track files is parsing , avoid double parsing 1 file .
+        private readonly ConcurrentDictionary<int, Task<AstFileResult?>> _inFlight = new();
 
         public AstScanner()
         {
@@ -21,57 +27,64 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
             _parser = new FileParser(_parserPool, _queries);
         }
 
-        // Phase 2 — parse top-N file quan trọng nhất, block đến khi xong
-        public async Task<List<AstFileResult>> ScanPriorityAsync(
-            ProjectIndex index,
-            int topN = 50,
-            CancellationToken ct = default)
-        {
-            var files = index.Files.Values
-                .Where(f => LanguageResolver.IsSupported(f.FilePath))
-                .OrderByDescending(f => f.PriorityScore)
-                .Take(topN)
-                .ToList();
-
-            Console.WriteLine($"[ast] priority scan: {files.Count} files");
-            return await RunBatchAsync(files, ct);
-        }
-
         // Phase 3 — background scan toàn bộ, không block
-        public async Task<List<AstFileResult>> ScanAllAsync(
+        public async Task ScanAllAsync(
             ProjectIndex index,
-            int batchSize = 50,
+            int batchSize = BATCH_SIZE,
             CancellationToken ct = default)
         {
-            var all = index.Files.Values
+            var ordered = index.Files.Values
                 .Where(f => LanguageResolver.IsSupported(f.FilePath))
                 .OrderByDescending(f => f.PriorityScore)
                 .ToList();
 
-            var results = new List<AstFileResult>();
-            var total = all.Count;
+            var total = ordered.Count;
 
             for (var i = 0; i < total; i += batchSize)
             {
                 ct.ThrowIfCancellationRequested();
 
-                var batch = all.Skip(i).Take(batchSize).ToList();
-                results.AddRange(await RunBatchAsync(batch, ct));
+                var batch = ordered.Skip(i).Take(batchSize).ToList();
+                await RunBatchAsync(batch, ct);
 
-                Console.WriteLine($"[ast] background: {Math.Min(i + batchSize, total)}/{total}");
+                Console.WriteLine($"[ast]: {Math.Min(i + batchSize, total)}/{total}");
 
-                // Yield CPU — không block UI thread
+                //yeild cpu avoud starve other task
                 await Task.Delay(100, ct);
             }
-
-            return results;
         }
 
-        private async Task<List<AstFileResult>> RunBatchAsync(
+        // solve the problem when file that already parsed but user or other task reqest it again , so return
+        // the cached result without parsing again
+        public async Task<AstFileResult?> GetOrParseAsync(
+            SRFileRecord file,
+            CancellationToken ct = default)
+        {
+            //if file is already parsed return cached result 
+            if (_results.TryGetValue(file.FileId, out var cached))
+                return cached;
+
+            // if file is parsing and exist in inFlight return await of the parsing task
+            if (_inFlight.TryGetValue(file.FileId, out var existing))
+                return await existing;
+
+            //if file is not parsed an not in inFlight so parse it and add to inFilght
+            Console.WriteLine($"[ast] on-demand: {file.FileName}");
+            var task = _parser.ParseAsync(file, ct);
+            _inFlight[file.FileId] = task;
+
+            // File parsed and now cache the result and remove from iNfLIGHT
+            var result = await task;
+            if (result is not null) _results[file.FileId] = result;
+            _inFlight.TryRemove(file.FileId, out _);
+
+            return result;
+        }
+
+        private async Task RunBatchAsync(
             List<SRFileRecord> files,
             CancellationToken ct)
         {
-            var results = new ConcurrentBag<AstFileResult>();
 
             // Parallel parse — mỗi thread có Parser riêng qua ThreadLocal
             await Parallel.ForEachAsync(
@@ -84,11 +97,16 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
                 },
                 async (file, token) =>
                 {
-                    var result = await _parser.ParseAsync(file, token);
-                    if (result is not null) results.Add(result);
-                });
+                    // if file is parsed so skip it
+                    if (_results.ContainsKey(file.FileId)) return;
 
-            return [.. results];
+                    var task = _parser.ParseAsync(file, token);
+                    _inFlight[file.FileId] = task;
+
+                    var result = await task;
+                    if (result is not null) _results[file.FileId] = result;
+                    _inFlight.TryRemove(file.FileId, out _);
+                });
         }
 
         public void Dispose()

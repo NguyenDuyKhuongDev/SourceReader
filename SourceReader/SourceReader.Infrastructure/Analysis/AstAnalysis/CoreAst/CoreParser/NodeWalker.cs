@@ -30,22 +30,24 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
             if (kind.HasValue)
             {
                 // TreeSitter.DotNet: ChildByFieldName("name") → node.Text
-                var nameNode = node.ChildByFieldName("name");
+                var nameNode = node.GetChildForField("name");
                 var name = nameNode?.Text;
 
                 if (name is not null)
                 {
                     symbols.Add(new SymbolRecord(
-                        SymbolId: nextId++,
-                        FileId: fileId,
-                        Name: name,
-                        Kind: kind.Value,
-                        StartLine: (int)node.StartPoint.Row + 1,
-                        EndLine: (int)node.EndPoint.Row + 1,
-                        ParentName: parentName
+                        symbolId: nextId++,
+                        fileId: fileId,
+                        name: name,
+                        kind: kind.Value,
+                        startLine: (int)node.StartPosition.Row + 1,
+                        endLine: (int)node.EndPosition.Row + 1,
+                        parentName: parentName
                     ));
 
-                    // Class/namespace/struct → làm parent cho các node con
+                    // If in params have parentName so it will be add to the symbol by the line symbols.Add
+                    // new(symbolrecord) above
+                    //if the symbol is class, name space ..etc so it name will be pass to it child throught recursion
                     if (kind.Value is SymbolKind.Class or SymbolKind.Namespace
                                    or SymbolKind.Interface or SymbolKind.Struct
                                    or SymbolKind.Record)
@@ -54,8 +56,8 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
             }
 
             // TreeSitter.DotNet: node.ChildCount + node.Child(i)
-            for (uint i = 0; i < node.ChildCount; i++)
-                WalkRecursive(node.Child(i), fileId, lang, parentName, symbols, ref nextId);
+            for (int i = 0; i < node.Children.Count; i++)
+                WalkRecursive(node.Children[i], fileId, lang, parentName, symbols, ref nextId);
         }
     }
 }

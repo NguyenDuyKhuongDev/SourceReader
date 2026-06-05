@@ -9,6 +9,9 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreQuery
 {
     public static class QueryRunner
     {
+        /// <summary>
+        /// This dicitonary is used to store a query pattern for each language , which will be used to extract symbol from ast , like class, method, interface, struct, enum, record, constructor, property and namespace , ast is all of the node in source but thought this pattern we just get what we want like class , method ..vv.
+        /// </summary>
         private static readonly Dictionary<string, string> Patterns =
             new(StringComparer.OrdinalIgnoreCase)
             {
@@ -61,6 +64,14 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreQuery
         public static string? GetPattern(string lang) =>
             Patterns.GetValueOrDefault(lang);
 
+        /// <summary>
+        /// run querry in AST to extract symbol base on query pattern 
+        /// </summary>
+        /// <param name="query"></param>
+        /// <param name="root"></param>
+        /// <param name="fileId"></param>
+        /// <param name="lang"></param>
+        /// <returns></returns>
         public static List<SymbolRecord> Run(
             Query query,
             Node root,
@@ -81,13 +92,13 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreQuery
                 if (string.IsNullOrWhiteSpace(name)) continue;
 
                 symbols.Add(new SymbolRecord(
-                    SymbolId: nextId++,
-                    FileId: fileId,
-                    Name: name,
-                    Kind: kind.Value,
-                    StartLine: (int)capture.Node.StartPoint.Row + 1,
-                    EndLine: (int)capture.Node.EndPoint.Row + 1,
-                    ParentName: ResolveParent(capture.Node, lang)
+                    symbolId: nextId++,
+                    fileId: fileId,
+                    name: name,
+                    kind: kind.Value,
+                    startLine: (int)capture.Node.StartPosition.Row+ 1,
+                    endLine: (int)capture.Node.EndPosition.Row + 1,
+                    parentName: ResolveParent(capture.Node, lang)
                 ));
             }
 

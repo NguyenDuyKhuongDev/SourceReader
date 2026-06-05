@@ -10,5 +10,11 @@ namespace SourceReader.Infrastructure.DataModel
         public string Language { get; set; }
         public List<SymbolRecord> symbols { get; set; }
 
+        public AstFileResult(int fileId, string language, List<SymbolRecord> symbols)
+        {
+            FileId = fileId;
+            Language = language;
+            this.symbols = symbols;
+        }
     }
 }

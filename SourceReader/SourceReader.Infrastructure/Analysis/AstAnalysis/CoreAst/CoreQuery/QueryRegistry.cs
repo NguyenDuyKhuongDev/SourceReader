@@ -12,7 +12,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreQuery
 
         public Query GetOrCompile(Language lang, string langName, string pattern)
         {
-            var key = $"{langName}::{pattern.GetHashCode()}";
+            var key = $"{langName}::{pattern}";
             return _cache.GetOrAdd(key, _ => new Query(lang, pattern));
         }
 

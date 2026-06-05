@@ -21,6 +21,14 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
             _queries = queryRegistry;
         }
 
+        /// <summary>
+        /// this method parse file by two way :
+        /// 1. if this language have pattern it will run query and extract symbol by pattern
+        /// 2. if this language don't have pattern it will fallback to NodeWalker
+        /// </summary>
+        /// <param name="file"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
         public async Task<AstFileResult?> ParseAsync(
            SRFileRecord file, CancellationToken ct)
         {
@@ -33,7 +41,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
                 var source = await File.ReadAllTextAsync(file.FilePath, ct);
 
                 // tree phải còn sống trong suốt quá trình extract
-                using var tree = poolParser.Parser(source);
+                using var tree = poolParser.Parser.Parse(source);
                 if (tree is null)
                 {
                     Console.WriteLine($"[parse] null tree: {file.FileName}");
@@ -43,15 +51,14 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
                 var pattern = QueryRunner.GetPattern(langName);
                 List<SymbolRecord> symbols;
 
+                //run query if this language have pattern(like oh with c# i just want to take class , method , etc so i set for it a pattern and run query so whenever i extract symbol i get name method ..etc)
                 if (pattern is not null)
                 {
-                    // Query — chính xác, ưu tiên dùng
-                    var query = _queries.GetOrCompile(lang, langName, pattern);
+                    var query = _queries.GetOrCompile(poolParser.Language, langName, pattern);
                     symbols = QueryRunner.Run(query, tree.RootNode, file.FileId, langName);
                 }
                 else
                 {
-                    // Fallback NodeWalker cho ngôn ngữ chưa có pattern
                     symbols = NodeWalker.Walk(tree.RootNode, file.FileId, langName);
                 }
 

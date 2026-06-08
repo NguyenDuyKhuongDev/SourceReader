@@ -19,6 +19,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
         private readonly ConcurrentDictionary<int, AstFileResult> _results = new();
         // track files is parsing , avoid double parsing 1 file .
         private readonly ConcurrentDictionary<int, Task<AstFileResult?>> _inFlight = new();
+        private readonly object _globalLock = new();
 
         public AstScanner()
         {
@@ -109,6 +110,9 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
                 });
         }
 
+        public int GetResumePoint() { 
+        
+        }
         public void Dispose()
         {
             // Thứ tự quan trọng: Query trước, Language sau

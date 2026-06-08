@@ -13,9 +13,9 @@ using static System.Net.Mime.MediaTypeNames;
 
 namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
 {
-    public class TreeSitterAnalyzer : ICodeAnalyzer
+    public class TreeSitterAnalyzer 
     {
-        private readonly LanguageLoader _languageLoader = new();
+        private readonly LanguageLoader _languageLoader = new LanguageLoader();
         public async Task<List<CodeChunk>> AnalyzeFileAsync(string filePath, string content)
         {
             var ext = Path.GetExtension(filePath);

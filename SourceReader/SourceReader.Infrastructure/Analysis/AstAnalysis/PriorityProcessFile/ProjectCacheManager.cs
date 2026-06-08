@@ -14,7 +14,7 @@ using File = System.IO.File;
 namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
 {
     // This class have the main purpose is to light scan the project to Calculate the priority score for each file to decide which file should be scan first
-    public class ProjectCacheManager
+    public class ProjectCacheManager:IDisposable
     {
         private readonly string CachePath;
         private readonly string root;
@@ -476,6 +476,11 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
                 await CreateRawRecordImport(fileInfo, tempImports, fileId, ct);
             }
             CreateImportRecord(tempImports, index, nextImportId);
+        }
+
+        public void Dispose()
+        {
+            throw new NotImplementedException();
         }
     }
 }

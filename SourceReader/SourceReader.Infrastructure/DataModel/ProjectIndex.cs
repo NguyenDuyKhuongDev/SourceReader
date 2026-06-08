@@ -40,6 +40,13 @@ namespace SourceReader.Infrastructure.DataModel
         [property: Key(5)] public int InDegree { get; set; }
         [property: Key(6)] public double PriorityScore { get; set; }
         [property: Key(7)] public long ModifiedAt { get; set; }
+
+        // status of the file, i use this field some case like resume after crash , shutdown cumputer ..etc
+        // and i use binary search to  find the unscanned file to resume at but it have some problem when user
+        //demand to scan some file that not follow by order of priority score , so i add field isondemand to indicate with normal scanned case
+        [property: Key(8)] public bool IsScanned{ get; set; }
+        //indicate if the file is scanned by demand or by order of priority score
+        [property: Key(9)] public bool IsOnDemand{ get; set; }
     }
 
     [MessagePackObject]

@@ -23,7 +23,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SourceReader.Core\SourceReader.Core.csproj" />
     <ProjectReference Include="..\SourceReader.Shared\SourceReader.Shared.csproj" />
   </ItemGroup>
 

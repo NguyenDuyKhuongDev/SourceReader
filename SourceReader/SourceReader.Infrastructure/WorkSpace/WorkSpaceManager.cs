@@ -8,6 +8,7 @@ namespace SourceReader.Infrastructure.WorkSpace
 {
     public sealed class WorkSpaceManager : IDisposable
     {
+        //in here i can just signup singeton in program.cs so it will automatically inject and disspose for me
         // singleton pattern , only use 1 instance of workspace manager in the application flow .
         private static readonly WorkSpaceManager _instance = new WorkSpaceManager();
         public static WorkSpaceManager Instance => _instance;
@@ -18,7 +19,7 @@ namespace SourceReader.Infrastructure.WorkSpace
         // Dùng:
         //var manager = await WorkspaceManager.Instance.GetOrCreateAsync("C:/projectA");
         //var index = await manager.LoadOrScanningAsync(ct);
-        private WorkspaceManager() { }
+        public WorkspaceManager() { }
 
         public async Task<ProjectCacheManager> GetOrCreateAsync(string root)
         {

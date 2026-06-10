@@ -374,9 +374,10 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
             Console.WriteLine($"[cached] saved - {new FileInfo(CachePath).Length / 1024}kb");
         }
 
-        private async Task<ProjectIndex> LoadAsync(CancellationToken ct = default)
+        public async Task<ProjectIndex?> LoadAsync(CancellationToken ct = default)
         {
             await using var stream = File.OpenRead(CachePath);
+            if (stream.Length == 0) return null;
             return await MessagePackSerializer.DeserializeAsync<ProjectIndex>(stream, null, ct);
         }
         /// <summary>

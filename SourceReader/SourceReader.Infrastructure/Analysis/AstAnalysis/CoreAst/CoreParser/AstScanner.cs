@@ -31,24 +31,25 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
         // Phase 3 — background scan toàn bộ, không block
         public async Task ScanAllAsync(
             ProjectIndex index,
-            int batchSize = BATCH_SIZE,
+            int resumePoint = 0,
             CancellationToken ct = default)
         {
             var ordered = index.Files.Values
                 .Where(f => LanguageResolver.IsSupported(f.FilePath))
                 .OrderByDescending(f => f.PriorityScore)
+                .Skip(resumePoint)
                 .ToList();
 
             var total = ordered.Count;
 
-            for (var i = 0; i < total; i += batchSize)
+            for (var i = 0; i < total; i += BATCH_SIZE)
             {
                 ct.ThrowIfCancellationRequested();
 
-                var batch = ordered.Skip(i).Take(batchSize).ToList();
+                var batch = ordered.Skip(i).Take(BATCH_SIZE).ToList();
                 await RunBatchAsync(batch, ct);
 
-                Console.WriteLine($"[ast]: {Math.Min(i + batchSize, total)}/{total}");
+                Console.WriteLine($"[ast]: {Math.Min(i + BATCH_SIZE, total)}/{total}");
 
                 //yeild cpu avoud starve other task
                 await Task.Delay(100, ct);
@@ -110,8 +111,10 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
                 });
         }
 
-        public int GetResumePoint() { 
-        
+        public int GetResumePoint()
+        {
+            var low = 0;
+            var hight = _results.Count - 1;
         }
         public void Dispose()
         {

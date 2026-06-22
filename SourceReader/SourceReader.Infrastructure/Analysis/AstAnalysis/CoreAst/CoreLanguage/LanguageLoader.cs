@@ -19,7 +19,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreLanguage
         /// </summary>
         /// <param name="languageName"></param>
         /// <returns></returns>
-        public static Language TryLoadLanguage(string languageName)
+        public static Language? TryLoadLanguage(string languageName)
         {
             try
             {

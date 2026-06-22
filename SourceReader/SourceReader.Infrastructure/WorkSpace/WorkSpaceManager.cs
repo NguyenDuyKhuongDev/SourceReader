@@ -1,4 +1,5 @@
-﻿using SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile;
+﻿using SourceReader.Core.Services.Project;
+using SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -13,15 +14,14 @@ namespace SourceReader.Infrastructure.WorkSpace
         private static readonly WorkSpaceManager _instance = new WorkSpaceManager();
         public static WorkSpaceManager Instance => _instance;
 
-        public readonly ConcurrentDictionary<string, ProjectCacheManager> _projectManagers = new();
+        public readonly ConcurrentDictionary<string, ProjectManager> _projectManagers = new();
         private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
 
         // Dùng:
         //var manager = await WorkspaceManager.Instance.GetOrCreateAsync("C:/projectA");
         //var index = await manager.LoadOrScanningAsync(ct);
-        public WorkspaceManager() { }
 
-        public async Task<ProjectCacheManager> GetOrCreateAsync(string root)
+        public async Task<ProjectManager> GetOrCreateAsync(string root)
         {
             // Normalize path — tránh "C:/proj" vs "C:/proj/" tạo 2 instance
             var normalized = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
@@ -38,7 +38,7 @@ namespace SourceReader.Infrastructure.WorkSpace
                 if (_projectManagers.TryGetValue(normalized, out existing))
                     return existing;
 
-                var manager = new ProjectCacheManager(normalized);
+                var manager = new ProjectManager(normalized);
                 _projectManagers[normalized] = manager;
                 return manager;
             }
@@ -48,7 +48,7 @@ namespace SourceReader.Infrastructure.WorkSpace
             }
         }
 
-        // Đóng project — giải phóng resource
+        //ShutDown/CLose project
         public void Close(string root)
         {
             var normalized = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
@@ -56,9 +56,14 @@ namespace SourceReader.Infrastructure.WorkSpace
                 manager.Dispose();
         }
 
+        //SHut down workspace
         public void Dispose()
         {
-            throw new NotImplementedException();
+            foreach (var project in _projectManagers.Values)
+            {
+                project.Dispose();
+            }
+            _instance.Dispose();
         }
     }
 }

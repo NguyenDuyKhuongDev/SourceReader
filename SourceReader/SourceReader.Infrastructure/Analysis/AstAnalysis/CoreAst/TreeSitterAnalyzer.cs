@@ -15,8 +15,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
 {
     public class TreeSitterAnalyzer 
     {
-        private readonly LanguageLoader _languageLoader = new LanguageLoader();
-        public async Task<List<CodeChunk>> AnalyzeFileAsync(string filePath, string content)
+               public async Task<List<CodeChunk>> AnalyzeFileAsync(string filePath, string content)
         {
             var ext = Path.GetExtension(filePath);
             var langId = ext switch
@@ -26,8 +25,9 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
                 ".js" => "javascript",
                 _ => null
             };
+
             if (langId == null) return new();
-            if (!_languageLoader.TryGet(langId, out Language language)) return new();
+            if (!LanguageLoader.TryLoadLanguage(langId, out Language language)) return new();
 
 
             using var parser = new Parser();

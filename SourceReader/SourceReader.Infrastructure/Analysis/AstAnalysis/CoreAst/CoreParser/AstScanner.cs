@@ -28,7 +28,18 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
             _parser = new FileParser(_parserPool, _queries);
         }
 
-        // Phase 3 — background scan toàn bộ, không block
+        public async Task ScanOnDemand(
+            ProjectIndex index,
+            List<int> fileIds,
+            CancellationToken ct = default
+            )
+        {
+            foreach (var fileId in fileIds)
+            {
+
+            }
+        }
+
         public async Task ScanAllAsync(
             ProjectIndex index,
             int resumePoint = 0,
@@ -93,29 +104,42 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
                 files,
                 new ParallelOptions
                 {
-                    // Giới hạn để không starve I/O thread
+                    // Limit number of parrallel thread , Math.Max(1,..) to avoid case Cumputer have 1 core.
                     MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount - 1),
                     CancellationToken = ct
                 },
                 async (file, token) =>
                 {
-                    // if file is parsed so skip it
-                    if (_results.ContainsKey(file.FileId)) return;
+                    try
+                    {
+                        // if file is parsed so skip it
+                        if (_results.ContainsKey(file.FileId)) return;
 
-                    var task = _parser.ParseAsync(file, token);
-                    _inFlight[file.FileId] = task;
+                        var task = _parser.ParseAsync(file, token);
+                        _inFlight[file.FileId] = task;
 
-                    var result = await task;
-                    if (result is not null) _results[file.FileId] = result;
-                    _inFlight.TryRemove(file.FileId, out _);
+                        var result = await task;
+                        if (result is not null) _results[file.FileId] = result;
+
+                    }
+                    catch (OperationCanceledException ex)
+                    {
+                        throw;
+                    }
+                    //catch exception in each task to avoid stop other parallel task when it failed
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Parse failed: {file.FilePath} - {ex.Message}");
+                    }
+                    finally
+                    {
+                        //in case result error _inFlight still can remove the error task instead of keep hold it.
+                        _inFlight.TryRemove(file.FileId, out _);
+                    }
+
                 });
         }
 
-        public int GetResumePoint()
-        {
-            var low = 0;
-            var hight = _results.Count - 1;
-        }
         public void Dispose()
         {
             // Thứ tự quan trọng: Query trước, Language sau

@@ -5,6 +5,8 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
+using TreeSitter;
+using Microsoft.Extensions.Logging;
 
 namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
 {
@@ -12,12 +14,15 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
     {
         private readonly ParserPool _pool;
         private readonly QueryRegistry _queries;
+        private readonly ILogger<FileParser> _logger; 
 
         public FileParser(
             ParserPool pool,
-            QueryRegistry queryRegistry)
+            QueryRegistry queryRegistry,
+            ILogger<FileParser> logger)
         {
             _pool = pool;
+            _logger = logger;
             _queries = queryRegistry;
         }
 
@@ -29,7 +34,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
         /// <param name="file"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        public async Task<AstFileResult?> ParseAsync(
+        public async Task<AstFileResult> ParseAsync(
            SRFileRecord file, CancellationToken ct)
         {
             var langName = LanguageResolver.Resolve(file.FilePath);
@@ -66,14 +71,17 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
             }
             catch (OperationCanceledException)
             {
-                throw; // không swallow cancellation
+                throw;
             }
+            // this method will be run in parrallel so we need to catch exception each of this task so when 1 of this fail , it will not end the whole parallel process
             catch (Exception ex)
             {
-                Console.WriteLine($"[parse] skip {file.FileName}: {ex.Message}");
-                return null;
+                // log detail error :stacktrace, message..vv 
+                _logger.LogError(ex, "Error parsing file {FileId} with language {Language}", file.FileId, langName);
+                //create ast file result with error message.
+                return AstFileResult.Fail(file.FileId, langName, ex.Message);
             }
         }
     }
 
-   }
+}

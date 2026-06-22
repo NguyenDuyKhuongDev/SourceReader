@@ -1,4 +1,5 @@
-﻿using SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser;
+﻿using SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreLanguage;
+using SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser;
 using SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile;
 using SourceReader.Infrastructure.DataModel;
 using System;
@@ -7,7 +8,7 @@ using System.Text;
 
 namespace SourceReader.Core.Services.Project
 {
-    public class ProjectManager
+    public class ProjectManager : IDisposable
     {
         private readonly AstScanner _scanner = new AstScanner();
         private readonly string _rootPath;
@@ -19,16 +20,44 @@ namespace SourceReader.Core.Services.Project
             _cacheManager = new ProjectCacheManager(rootPath);
         }
 
-        public async Task RunAsync(ProjectIndex index, CancellationToken ct)
+        /// <summary>
+        /// Normal flow scan files of project in order priority score , skip the file that already scanned.
+        /// </summary>
+        /// <param name="index"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        public void StartScanAsync(ProjectIndex index, CancellationToken ct)
         {
-            var resumePoint = await GetResumePoint(ct);
-            // Kick off background scan — không await, không block
-            _ = Task.Run(() => _scanner.ScanAllAsync(index, resumePoint, ct: ct), ct);
+            if (index.Files.Count == 0) throw new InvalidOperationException("Project is empty");
 
-            // User query bất kỳ lúc nào
-            // File đã scan → trả về ngay
-            // File chưa scan → parse on-demand rồi tiếp tục background
+            var orderedFiles = index.Files.Values
+                .Where(f => LanguageResolver.IsSupported(f.FilePath))
+                .OrderByDescending(f => f.PriorityScore)
+                .ToList();
+
+            var resumePoint = GetResumePoint(orderedFiles);
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _scanner.ScanAllAsync(index, resumePoint, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    Console.WriteLine(
+                            $"[Scan Process Cancled]");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(
+                            $"[Scan failed] {ex}");
+                }
+            });
         }
+
+
 
         public Task<AstFileResult?> QueryFile(SRFileRecord file, CancellationToken ct)
             => _scanner.GetOrParseAsync(file, ct);
@@ -38,7 +67,7 @@ namespace SourceReader.Core.Services.Project
         {
             if (ordered.Count == 0) return 0;
 
-            int low = 0 ,hight = ordered.Count - 1, result = 0;
+            int low = 0, hight = ordered.Count - 1, result = 0;
 
             while (low <= hight)
             {
@@ -63,5 +92,10 @@ namespace SourceReader.Core.Services.Project
             return result;
         }
 
+        public void Dispose()
+        {
+            _scanner.Dispose();
+            _cacheManager.Dispose();
+        }
     }
 }

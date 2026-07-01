@@ -8,7 +8,12 @@ namespace SourceReader.Infrastructure.DataModel
     [MessagePackObject]
     public class ProjectIndex
     {
-        [property: Key(0)] public string Root { get; set; } = "";
+        public ProjectIndex(string cachedPath)
+        {
+            CachedPath= cachedPath;
+        }
+
+        [property: Key(0)] public string CachedPath{ get; set; }
         [property: Key(1)] public Dictionary<int, SRFileRecord> Files { get; set; } = new();
         [property: Key(2)] public Dictionary<int, SRImportRecord> Imports { get; set; } = new();
         /// <summary>
@@ -44,9 +49,9 @@ namespace SourceReader.Infrastructure.DataModel
         // status of the file, i use this field some case like resume after crash , shutdown cumputer ..etc
         // and i use binary search to  find the unscanned file to resume at but it have some problem when user
         //demand to scan some file that not follow by order of priority score , so i add field isondemand to indicate with normal scanned case
-        [property: Key(8)] public bool IsScanned{ get; set; }
+        [property: Key(8)] public bool IsScanned { get; set; }
         //indicate if the file is scanned by demand or by order of priority score
-        [property: Key(9)] public bool IsOnDemand{ get; set; }
+        [property: Key(9)] public bool IsOnDemand { get; set; }
     }
 
     [MessagePackObject]

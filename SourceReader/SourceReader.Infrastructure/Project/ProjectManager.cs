@@ -8,30 +8,39 @@ using System.Text;
 
 namespace SourceReader.Core.Services.Project
 {
-    public class ProjectManager : IDisposable
+    public class ProjectManager
     {
-        private readonly AstScanner _scanner = new AstScanner();
+        private readonly AstScanner _scanner;
         private readonly string _rootPath;
         private readonly ProjectCacheManager _cacheManager;
+        public readonly ProjectIndex? _index = null; // need set this readonly or private 
 
-        public ProjectManager(string rootPath)
+        public ProjectManager(AstScanner scanner, string rootPath)
         {
+            _scanner = scanner;
             _rootPath = rootPath;
             _cacheManager = new ProjectCacheManager(rootPath);
+            _index = new ProjectIndex(_cacheManager.GetCachePath());
         }
+
+        /// <summary>
+        /// load project from cached or if it's not scanned so scann it (scan in here mean create an index project of project with data of structure like FileRecord, Index Record ..vv) 
+        /// </summary>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        public async Task CachedProject(CancellationToken ct) => await _cacheManager.LoadOrScanningAsync(ct);
 
         /// <summary>
         /// Normal flow scan files of project in order priority score , skip the file that already scanned.
         /// </summary>
-        /// <param name="index"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
         /// <exception cref="InvalidOperationException"></exception>
-        public void StartScanAsync(ProjectIndex index, CancellationToken ct)
+        public void StartScanAsync(CancellationToken ct)
         {
-            if (index.Files.Count == 0) throw new InvalidOperationException("Project is empty");
+            if (_index.Files.Count == 0) throw new InvalidOperationException("Project is empty");
 
-            var orderedFiles = index.Files.Values
+            var orderedFiles = _index.Files.Values
                 .Where(f => LanguageResolver.IsSupported(f.FilePath))
                 .OrderByDescending(f => f.PriorityScore)
                 .ToList();
@@ -42,7 +51,7 @@ namespace SourceReader.Core.Services.Project
             {
                 try
                 {
-                    await _scanner.ScanAllAsync(index, resumePoint, ct);
+                    await _scanner.ScanAllAsync(_index, resumePoint, ct);
                 }
                 catch (OperationCanceledException)
                 {
@@ -92,10 +101,5 @@ namespace SourceReader.Core.Services.Project
             return result;
         }
 
-        public void Dispose()
-        {
-            _scanner.Dispose();
-            _cacheManager.Dispose();
-        }
     }
 }

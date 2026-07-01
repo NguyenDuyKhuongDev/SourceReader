@@ -1,25 +1,47 @@
 ﻿using SourceReader.Core.Services.Project;
+using SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser;
 using SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile;
+using SourceReader.Infrastructure.DataModel;
+using SourceReader.Infrastructure.Factory;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Reflection.Metadata;
 using System.Text;
 
 namespace SourceReader.Infrastructure.WorkSpace
 {
-    public sealed class WorkSpaceManager : IDisposable
+    public sealed class WorkSpaceManager
     {
-        //in here i can just signup singeton in program.cs so it will automatically inject and disspose for me
-        // singleton pattern , only use 1 instance of workspace manager in the application flow .
-        private static readonly WorkSpaceManager _instance = new WorkSpaceManager();
-        public static WorkSpaceManager Instance => _instance;
-
+        private readonly ProjectManagerFactory _factory;
+        // Key: rootPath ->  Value: ProjectManager
         public readonly ConcurrentDictionary<string, ProjectManager> _projectManagers = new();
+        // Key: RoothPath -> Value: 
+        public List<(string name, string root)> _projectCacheds = new();
         private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
+        private readonly string CACHED_DIR = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SourceReader", "cache");
 
+
+        public WorkSpaceManager(ProjectManagerFactory factory)
+        {
+            _factory = factory;
+            LoadCachedProject();
+        }
+
+     
         // Dùng:
         //var manager = await WorkspaceManager.Instance.GetOrCreateAsync("C:/projectA");
         //var index = await manager.LoadOrScanningAsync(ct);
+
+        public async void LoadCachedProject()
+        {
+            string[] folders= Directory.GetDirectories(CACHED_DIR);
+
+            foreach (var folder in folders)
+            {
+                _projectCacheds.Add((Path.GetFileNameWithoutExtension(folder), folder));
+            }
+        }
 
         public async Task<ProjectManager> GetOrCreateAsync(string root)
         {
@@ -38,7 +60,8 @@ namespace SourceReader.Infrastructure.WorkSpace
                 if (_projectManagers.TryGetValue(normalized, out existing))
                     return existing;
 
-                var manager = new ProjectManager(normalized);
+                //use factory to create instance of ProjectManager
+                var manager = _factory.Create(root);
                 _projectManagers[normalized] = manager;
                 return manager;
             }
@@ -48,23 +71,7 @@ namespace SourceReader.Infrastructure.WorkSpace
             }
         }
 
-        //ShutDown/CLose project
-        public void Close(string root)
-        {
-            var normalized = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
-            if (_projectManagers.TryRemove(normalized, out var manager))
-                manager.Dispose();
-        }
 
-        //SHut down workspace
-        public void Dispose()
-        {
-            foreach (var project in _projectManagers.Values)
-            {
-                project.Dispose();
-            }
-            _instance.Dispose();
-        }
     }
 }
 

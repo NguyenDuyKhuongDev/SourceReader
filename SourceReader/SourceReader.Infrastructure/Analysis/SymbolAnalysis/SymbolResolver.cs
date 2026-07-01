@@ -11,12 +11,12 @@ namespace SourceReader.Infrastructure.Analysis.SymbolAnalysis
     {
         public static string GetSymbolName(Node node, string content)
         {
-            for (int i = 0; i < node.ChildCount; i++)
+            for (int i = 0; i < node.Children.Count; i++)
             {
-                var child = node.Child(i);
-                if (child.Kind == "identifier")
+                var child = node.Children[i];
+                if (child.Type== "identifier")
                 {
-                    return content.Substring(child.StartByte, child.EndByte - child.StartByte);
+                    return content.Substring(child.StartIndex, child.EndIndex- child.StartIndex);
                 }
             }
             return "";

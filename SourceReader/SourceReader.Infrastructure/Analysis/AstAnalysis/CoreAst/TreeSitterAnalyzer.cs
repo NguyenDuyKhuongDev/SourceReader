@@ -1,5 +1,4 @@
-﻿using SourceReader.Core.Interfaces.IServices;
-using SourceReader.Core.Models.MetaData.PartOfFile;
+﻿using SourceReader.Core.Models.MetaData.PartOfFile;
 using SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreLanguage;
 using SourceReader.Infrastructure.Analysis.SemanticChunk;
 using System;
@@ -15,42 +14,42 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst
 {
     public class TreeSitterAnalyzer 
     {
-               public async Task<List<CodeChunk>> AnalyzeFileAsync(string filePath, string content)
-        {
-            var ext = Path.GetExtension(filePath);
-            var langId = ext switch
-            {
-                ".cs" => "csharp",
-                ".py" => "python",
-                ".js" => "javascript",
-                _ => null
-            };
+        //       public async Task<List<CodeChunk>> AnalyzeFileAsync(string filePath, string content)
+        //{
+        //    var ext = Path.GetExtension(filePath);
+        //    var langId = ext switch
+        //    {
+        //        ".cs" => "csharp",
+        //        ".py" => "python",
+        //        ".js" => "javascript",
+        //        _ => null
+        //    };
 
-            if (langId == null) return new();
-            if (!LanguageLoader.TryLoadLanguage(langId, out Language language)) return new();
+        //    if (langId == null) return new();
+        //    if (!LanguageLoader.TryLoadLanguage(langId, out Language language)) return new();
 
 
-            using var parser = new Parser();
-            parser.Language = language;
-            using var tree = parser.Parse(content);
-            var root = tree.Root;
+        //    using var parser = new Parser();
+        //    parser.Language = language;
+        //    using var tree = parser.Parse(content);
+        //    var root = tree.Root;
 
-            return SemanticChunkExtractor.Extract(root, content, filePath);
-        }
+        //    return SemanticChunkExtractor.Extract(root, content, filePath);
+        //}
 
-        public async Task<List<CodeChunk>> AnalyzeProjectAsync(string projectPath)
-        {
-            var result = new List<CodeChunk>();
+        //public async Task<List<CodeChunk>> AnalyzeProjectAsync(string projectPath)
+        //{
+        //    var result = new List<CodeChunk>();
 
-            var files = Directory.GetFiles(projectPath, "*.*", SearchOption.AllDirectories);
-            foreach (var file in files)
-            {
-                var content = await File.ReadAllTextAsync(file);
-                var chunks = await AnalyzeFileAsync(file, content);
+        //    var files = Directory.GetFiles(projectPath, "*.*", SearchOption.AllDirectories);
+        //    foreach (var file in files)
+        //    {
+        //        var content = await File.ReadAllTextAsync(file);
+        //        var chunks = await AnalyzeFileAsync(file, content);
 
-                result.AddRange(chunks);
-            }
-            return result;
-        }
+        //        result.AddRange(chunks);
+        //    }
+        //    return result;
+        //}
     }
 }

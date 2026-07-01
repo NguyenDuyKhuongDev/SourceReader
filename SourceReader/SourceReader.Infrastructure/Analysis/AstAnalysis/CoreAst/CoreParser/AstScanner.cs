@@ -1,4 +1,5 @@
-﻿using SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreLanguage;
+﻿using Microsoft.Extensions.Logging;
+using SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreLanguage;
 using SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreQuery;
 using SourceReader.Infrastructure.DataModel;
 using System;
@@ -8,10 +9,11 @@ using System.Text;
 
 namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
 {
-    public sealed class AstScanner : IDisposable
+    public sealed class AstScanner
     {
-        private readonly ParserPool _parserPool;
-        private readonly QueryRegistry _queries;
+        //2 atribute này khả năng cho singleton chứ nhỉ? nếu vậy thì 
+        //private readonly ParserPool _parserPool;
+        //private readonly QueryRegistry _queries;
         private readonly FileParser _parser;
         private const int BATCH_SIZE = 50;
 
@@ -21,23 +23,26 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
         private readonly ConcurrentDictionary<int, Task<AstFileResult?>> _inFlight = new();
         private readonly object _globalLock = new();
 
-        public AstScanner()
+        public AstScanner(FileParser parser)
         {
-            _parserPool = new ParserPool();
-            _queries = new QueryRegistry();
-            _parser = new FileParser(_parserPool, _queries);
+            _parser = parser;
         }
 
         public async Task ScanOnDemand(
             ProjectIndex index,
             List<int> fileIds,
+            int resumePoint,
             CancellationToken ct = default
             )
         {
-            foreach (var fileId in fileIds)
-            {
+            var fileOnDemands = index.Files.Values
+               .Where(f => LanguageResolver.IsSupported(f.FilePath) &&
+               fileIds.Contains(f.FileId))
+               .Skip(resumePoint)
+               .OrderByDescending(f => f.PriorityScore)
+               .ToList();
 
-            }
+            await RunBatchAsync(fileOnDemands, ct);
         }
 
         public async Task ScanAllAsync(
@@ -99,7 +104,6 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
             CancellationToken ct)
         {
 
-            // Parallel parse — mỗi thread có Parser riêng qua ThreadLocal
             await Parallel.ForEachAsync(
                 files,
                 new ParallelOptions
@@ -140,11 +144,5 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
                 });
         }
 
-        public void Dispose()
-        {
-            // Thứ tự quan trọng: Query trước, Language sau
-            _queries.Dispose();
-            _parserPool.Dispose();
-        }
     }
 }

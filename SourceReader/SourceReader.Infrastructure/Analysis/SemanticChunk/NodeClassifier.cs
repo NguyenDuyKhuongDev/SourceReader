@@ -20,7 +20,7 @@ namespace SourceReader.Infrastructure.Analysis.SemanticChunk
 
         public  static bool IsSymbol(Node node)
         {
-            return Symbols.Contains(node.Kind);
+            return Symbols.Contains(node.Type);
         }
     }
 }

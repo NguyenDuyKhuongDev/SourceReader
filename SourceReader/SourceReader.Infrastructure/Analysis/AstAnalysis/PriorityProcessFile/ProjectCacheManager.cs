@@ -14,8 +14,9 @@ using File = System.IO.File;
 namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
 {
     // This class have the main purpose is to light scan the project to Calculate the priority score for each file to decide which file should be scan first
-    public class ProjectCacheManager:IDisposable
+    public class ProjectCacheManager
     {
+        //path of file cache store in app data 
         private readonly string CachePath;
         private readonly string root;
         // Ignore file that have much size and file have too small size
@@ -35,8 +36,8 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
 
         public ProjectCacheManager(string root)
         {
-            CachePath = GetCachePath();
             this.root = root;
+            CachePath = CreateCachePath();
         }
 
         public async Task<ProjectIndex> LoadOrScanningAsync(CancellationToken ct)
@@ -45,7 +46,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
             {
                 var cached = await LoadAsync(ct);
 
-                if (cached.Root != root) return await FullScanAsync(ct);
+                if (cached.CachedPath!= CachePath) return await FullScanAsync(ct);
 
                 var diff = DetectsChanges(cached);
                 if (diff.IsEmpty)
@@ -67,10 +68,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
         private async Task<ProjectIndex> FullScanAsync(CancellationToken ct)
         {
             Console.WriteLine("Starting Full Scann...");
-            var index = new ProjectIndex()
-            {
-                Root = root
-            };
+            var index = new ProjectIndex(root);
 
             // ignore all file contains  ignored pattern in directory and filter size file
             var file = GetFileValid();
@@ -366,6 +364,12 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
             return null;
         }
 
+        /// <summary>
+        /// save index to file cached in folder Appdata
+        /// </summary>
+        /// <param name="index"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
         private async Task SaveAsync(ProjectIndex index, CancellationToken ct)
         {
             Directory.CreateDirectory(".cache");
@@ -374,9 +378,21 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
             Console.WriteLine($"[cached] saved - {new FileInfo(CachePath).Length / 1024}kb");
         }
 
+        /// <summary>
+        /// Load File project index cached in Appdata 
+        /// </summary>
+        /// <param name="ct"></param>
+        /// <returns></returns>
         public async Task<ProjectIndex?> LoadAsync(CancellationToken ct = default)
         {
             await using var stream = File.OpenRead(CachePath);
+            if (stream.Length == 0) return null;
+            return await MessagePackSerializer.DeserializeAsync<ProjectIndex>(stream, null, ct);
+        }
+
+        public static async Task<ProjectIndex?> LoadAsync(string cachedPath,CancellationToken ct = default)
+        {
+            await using var stream = File.OpenRead(cachedPath);
             if (stream.Length == 0) return null;
             return await MessagePackSerializer.DeserializeAsync<ProjectIndex>(stream, null, ct);
         }
@@ -385,7 +401,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
         /// </summary>
         /// <param name="root"></param>
         /// <returns></returns>
-        private string GetCachePath()
+        private string CreateCachePath()
         {
             //make an unique id for cache file by it root path and just take 12 char for short name 
             var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(root)))[..12];
@@ -397,6 +413,8 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
             Directory.CreateDirectory(cacheDir);
             return Path.Combine(cacheDir, $"index-{hash}.msgpack");
         }
+
+        public string GetCachePath() => CachePath;
 
         /// <summary>
         /// get File that is not in ignored directory and have size that not too small and too big
@@ -479,9 +497,5 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
             CreateImportRecord(tempImports, index, nextImportId);
         }
 
-        public void Dispose()
-        {
-            throw new NotImplementedException();
-        }
-    }
+           }
 }

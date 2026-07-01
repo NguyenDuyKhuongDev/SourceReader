@@ -21,7 +21,7 @@ namespace SourceReader.Infrastructure.Analysis.SemanticChunk
 
     private static void Walk(Node node, string content, string file, List<CodeChunk> result, string? currentNamespace)
         {
-            if (node.Kind == "namespace_declaration")
+            if (node.Type== "namespace_declaration")
             {
                 currentNamespace = SymbolResolver.GetSymbolName(node, content);
             }
@@ -29,11 +29,11 @@ namespace SourceReader.Infrastructure.Analysis.SemanticChunk
             if (NodeClassifier.IsSymbol(node)) {
                 var name = SymbolResolver.GetSymbolName(node, content);
 
-                var text = content.Substring(node.StartByte, node.EndByte - node.StartByte);
+                var text = content.Substring(node.StartIndex, node.EndIndex- node.StartIndex);
 
                 result.Add(new CodeChunk{
                     FilePath = file,
-                    SymbolType = node.Kind,
+                    SymbolType = node.Type,
                     SymbolName = name,
                     NameSpace = currentNamespace,
                     Content = text,
@@ -41,8 +41,8 @@ namespace SourceReader.Infrastructure.Analysis.SemanticChunk
                     EndLine = node.EndPosition.Row.ToString(),
                 });
             }
-            for (int i = 0; i < node.ChildCount; i++) {
-                Walk(node.Child(i), content, file, result, currentNamespace);
+            for (int i = 0; i < node.Children.Count; i++) {
+                Walk(node.Children[i], content, file, result, currentNamespace);
             }
         }
     } 

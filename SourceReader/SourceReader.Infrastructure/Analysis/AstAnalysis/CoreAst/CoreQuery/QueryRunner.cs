@@ -117,7 +117,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreQuery
                          or SymbolKind.Interface or SymbolKind.Struct
                          or SymbolKind.Record)
                 {
-                    return current.ChildByFieldName("name")?.Text;
+                    return current.GetChildrenForField("name").FirstOrDefault()?.Text;
                 }
                 current = current.Parent;
             }

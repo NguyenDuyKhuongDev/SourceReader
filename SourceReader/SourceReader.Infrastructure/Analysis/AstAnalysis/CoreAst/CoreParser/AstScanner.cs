@@ -72,8 +72,12 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
             }
         }
 
-        // solve the problem when file that already parsed but user or other task reqest it again , so return
-        // the cached result without parsing again
+        /// <summary>
+        /// Is the wrapper for method Parse File this wrap method solve the problem when file that already parsed but user or other task reqest it again , so return, the cached result without parsing again
+        /// </summary>
+        /// <param name="file"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
         public async Task<AstFileResult?> GetOrParseAsync(
             SRFileRecord file,
             CancellationToken ct = default)

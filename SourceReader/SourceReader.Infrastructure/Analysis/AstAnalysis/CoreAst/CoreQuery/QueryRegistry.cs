@@ -6,7 +6,7 @@ using TreeSitter;
 
 namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreQuery
 {
-    public sealed class QueryRegistry : IDisposable
+    public sealed class QueryRegistry
     {
         private readonly ConcurrentDictionary<string, Query> _cache = new();
 
@@ -14,12 +14,6 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreQuery
         {
             var key = $"{langName}::{pattern}";
             return _cache.GetOrAdd(key, _ => new Query(lang, pattern));
-        }
-
-        public void Dispose()
-        {
-            foreach (var q in _cache.Values) q.Dispose();
-            _cache.Clear();
         }
     }
 }

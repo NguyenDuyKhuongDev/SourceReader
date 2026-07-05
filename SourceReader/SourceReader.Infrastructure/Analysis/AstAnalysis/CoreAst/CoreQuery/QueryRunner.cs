@@ -81,7 +81,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreQuery
             var symbols = new List<SymbolRecord>();
             var nextId = 1;
 
-            // TreeSitter.DotNet: query.Execute(root).Captures
+            //Capture is the result of query , it contains nodes that math the query
             foreach (var capture in query.Execute(root).Captures)
             {
                 var kind = CaptureNameToKind(capture.Name);

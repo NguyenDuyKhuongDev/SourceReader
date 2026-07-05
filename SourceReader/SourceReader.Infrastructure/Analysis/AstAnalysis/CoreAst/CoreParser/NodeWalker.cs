@@ -29,7 +29,6 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
             var kind = NodeKindMap.Resolve(node.Type, lang);
             if (kind.HasValue)
             {
-                // TreeSitter.DotNet: ChildByFieldName("name") → node.Text
                 var nameNode = node.GetChildForField("name");
                 var name = nameNode?.Text;
 
@@ -55,7 +54,6 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser
                 }
             }
 
-            // TreeSitter.DotNet: node.ChildCount + node.Child(i)
             for (int i = 0; i < node.Children.Count; i++)
                 WalkRecursive(node.Children[i], fileId, lang, parentName, symbols, ref nextId);
         }

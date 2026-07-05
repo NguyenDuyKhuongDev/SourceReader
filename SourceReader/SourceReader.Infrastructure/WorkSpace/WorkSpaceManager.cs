@@ -2,7 +2,7 @@
 using SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser;
 using SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile;
 using SourceReader.Infrastructure.DataModel;
-using SourceReader.Infrastructure.Factory;
+using SourceReader.Infrastructure.Project;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -11,13 +11,16 @@ using System.Text;
 
 namespace SourceReader.Infrastructure.WorkSpace
 {
+    /// <summary>
+    /// The hightest level manager of this project, manager other projects 
+    /// </summary>
     public sealed class WorkSpaceManager
     {
         private readonly ProjectManagerFactory _factory;
         // Key: rootPath ->  Value: ProjectManager
         public readonly ConcurrentDictionary<string, ProjectManager> _projectManagers = new();
-        // Key: RoothPath -> Value: 
-        public List<(string name, string root)> _projectCacheds = new();
+        // Key: RoothPath -> Value: project Cached path
+        public List<Tuple<string, string>> _projectCacheds = new();
         private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
         private readonly string CACHED_DIR = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SourceReader", "cache");
 
@@ -28,21 +31,25 @@ namespace SourceReader.Infrastructure.WorkSpace
             LoadCachedProject();
         }
 
-     
-        // Dùng:
-        //var manager = await WorkspaceManager.Instance.GetOrCreateAsync("C:/projectA");
-        //var index = await manager.LoadOrScanningAsync(ct);
-
+        /// <summary>
+        ///this load a list project has cached , this can be use to show the list of project that
+        /// workspace manager can open (not create an object of project manager yet)
+        /// </summary>
         public async void LoadCachedProject()
         {
-            string[] folders= Directory.GetDirectories(CACHED_DIR);
+            string[] files= Directory.GetFiles(CACHED_DIR);
 
-            foreach (var folder in folders)
+            foreach (var file in files)
             {
-                _projectCacheds.Add((Path.GetFileNameWithoutExtension(folder), folder));
+                _projectCacheds.Add(Tuple.Create(Path.GetFileNameWithoutExtension(file), file));
             }
         }
 
+        /// <summary>
+        ///Create an instance of project manager for the project that had scanned or 1st time scan , after create instance add it into a list key(rootpath) - value(instance project manager) in workspace manager - it's like this project is opened in workpace maanager
+        /// </summary>
+        /// <param name="root"></param>
+        /// <returns></returns>
         public async Task<ProjectManager> GetOrCreateAsync(string root)
         {
             // Normalize path — tránh "C:/proj" vs "C:/proj/" tạo 2 instance

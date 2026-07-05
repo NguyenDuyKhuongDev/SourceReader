@@ -13,8 +13,10 @@ using File = System.IO.File;
 
 namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
 {
-    // This class have the main purpose is to light scan the project to Calculate the priority score for each file to decide which file should be scan first
-    public class ProjectCacheManager
+    /// <summary>
+    /// This class have the main purpose is to light scan the project to Calculate the priority score for each file to decide which file should be scan first
+    /// </summary>
+    public class ProjectIndexManager
     {
         //path of file cache store in app data 
         private readonly string CachePath;
@@ -34,19 +36,42 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
                 RegexOptions.Compiled | RegexOptions.Multiline
             );
 
-        public ProjectCacheManager(string root)
+        public ProjectIndexManager(string root)
         {
             this.root = root;
-            CachePath = CreateCachePath();
+            CachePath = CreateCachePath(root);
         }
-
+        public string GetCachePath() => CachePath;
+        /// <summary>
+        /// Load File project index cached in Appdata 
+        /// </summary>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        public async Task<ProjectIndex?> LoadAsync(CancellationToken ct = default)
+        {
+            await using var stream = File.OpenRead(CachePath);
+            if (stream.Length == 0) return null;
+            return await MessagePackSerializer.DeserializeAsync<ProjectIndex>(stream, null, ct);
+        }
+        /// <summary>
+        /// Load Project Index of Project by cachedPath - load from file
+        /// </summary>
+        /// <param name="cachedPath"></param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        public static async Task<ProjectIndex?> LoadAsync(string cachedPath, CancellationToken ct = default)
+        {
+            await using var stream = File.OpenRead(cachedPath);
+            if (stream.Length == 0) return null;
+            return await MessagePackSerializer.DeserializeAsync<ProjectIndex>(stream, null, ct);
+        }
         public async Task<ProjectIndex> LoadOrScanningAsync(CancellationToken ct)
         {
             if (File.Exists(CachePath))
             {
                 var cached = await LoadAsync(ct);
 
-                if (cached.CachedPath!= CachePath) return await FullScanAsync(ct);
+                //if (cached.rootPath!= CachePath) return await FullScanAsync(ct;
 
                 var diff = DetectsChanges(cached);
                 if (diff.IsEmpty)
@@ -65,6 +90,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
 
         }
 
+        #region Helpers for LoadOrScanningAsync
         private async Task<ProjectIndex> FullScanAsync(CancellationToken ct)
         {
             Console.WriteLine("Starting Full Scann...");
@@ -281,6 +307,35 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
         }
 
         /// <summary>
+        /// detect changes by modified time of file
+        /// </summary>
+        /// <param name="cached"></param>
+        /// <returns></returns>
+        private ProjectDiff DetectsChanges(ProjectIndex cached)
+        {
+            var deleted = new ConcurrentBag<int>();
+            var modified = new ConcurrentBag<int>();
+
+            Parallel.ForEach(cached.Files, kvp =>
+            {
+                var (id, file) = kvp;
+                if (!File.Exists(file.FilePath)) { deleted.Add(id); return; }
+                var mTime = File.GetLastWriteTimeUtc(file.FilePath).Ticks;
+                if (mTime != file.ModifiedAt) modified.Add(id);
+            });
+
+            var existingPath = cached.PathToId.Keys.ToHashSet();
+            var allFilePathInDirValid = GetPathValid();
+            var added = allFilePathInDirValid
+               .Where(p => !existingPath.Contains(p))
+               .ToList();
+
+            return new ProjectDiff(deleted.ToList(), added, modified.ToList());
+        }
+        #endregion
+
+        #region Helpers
+        /// <summary>
         /// remove all in/out edges, import record related to fileId
         /// </summary>
         /// <param name="index"></param>
@@ -310,33 +365,7 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
                 .ToList();
             foreach (var id in toRemoveImport) index.Imports.Remove(id);
         }
-
-        /// <summary>
-        /// detect changes by modified time of file
-        /// </summary>
-        /// <param name="cached"></param>
-        /// <returns></returns>
-        private ProjectDiff DetectsChanges(ProjectIndex cached)
-        {
-            var deleted = new ConcurrentBag<int>();
-            var modified = new ConcurrentBag<int>();
-
-            Parallel.ForEach(cached.Files, kvp =>
-            {
-                var (id, file) = kvp;
-                if (!File.Exists(file.FilePath)) { deleted.Add(id); return; }
-                var mTime = File.GetLastWriteTimeUtc(file.FilePath).Ticks;
-                if (mTime != file.ModifiedAt) modified.Add(id);
-            });
-
-            var existingPath = cached.PathToId.Keys.ToHashSet();
-            var allFilePathInDirValid = GetPathValid();
-            var added = allFilePathInDirValid
-               .Where(p => !existingPath.Contains(p))
-               .ToList();
-
-            return new ProjectDiff(deleted.ToList(), added, modified.ToList());
-        }
+      
         /// <summary>
         /// import usually dont have extension so we combine sourcedir + rawpath and popular extension to find this file in project by pathToId dictionary which is path-> fileId , method return fileId of import targetif found or null if not
         /// exp:
@@ -377,31 +406,13 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
             await MessagePackSerializer.SerializeAsync(stream, index, cancellationToken: ct);
             Console.WriteLine($"[cached] saved - {new FileInfo(CachePath).Length / 1024}kb");
         }
-
-        /// <summary>
-        /// Load File project index cached in Appdata 
-        /// </summary>
-        /// <param name="ct"></param>
-        /// <returns></returns>
-        public async Task<ProjectIndex?> LoadAsync(CancellationToken ct = default)
-        {
-            await using var stream = File.OpenRead(CachePath);
-            if (stream.Length == 0) return null;
-            return await MessagePackSerializer.DeserializeAsync<ProjectIndex>(stream, null, ct);
-        }
-
-        public static async Task<ProjectIndex?> LoadAsync(string cachedPath,CancellationToken ct = default)
-        {
-            await using var stream = File.OpenRead(cachedPath);
-            if (stream.Length == 0) return null;
-            return await MessagePackSerializer.DeserializeAsync<ProjectIndex>(stream, null, ct);
-        }
+     
         /// <summary>
         /// create unique cache path for each project by hash the root path to avoid conflict when multiple project have same name  but different path
         /// </summary>
         /// <param name="root"></param>
         /// <returns></returns>
-        private string CreateCachePath()
+        private string CreateCachePath(string root)
         {
             //make an unique id for cache file by it root path and just take 12 char for short name 
             var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(root)))[..12];
@@ -411,10 +422,8 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
             var cacheDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SourceReader", "cache");
 
             Directory.CreateDirectory(cacheDir);
-            return Path.Combine(cacheDir, $"index-{hash}.msgpack");
+            return Path.Combine(cacheDir, $"{Path.GetFileNameWithoutExtension(root)}-{hash}.msgpack");
         }
-
-        public string GetCachePath() => CachePath;
 
         /// <summary>
         /// get File that is not in ignored directory and have size that not too small and too big
@@ -496,6 +505,8 @@ namespace SourceReader.Infrastructure.Analysis.AstAnalysis.PriorityProcessFile
             }
             CreateImportRecord(tempImports, index, nextImportId);
         }
-
-           }
+    
+        
+        #endregion
+    }
 }

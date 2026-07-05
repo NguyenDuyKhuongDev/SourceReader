@@ -11,6 +11,7 @@
     <Folder Include="Analysis\CallGraph\" />
     <Folder Include="Analysis\DependencyGraph\" />
     <Folder Include="Analysis\SymbolAnalysis\CoreSymbol\" />
+    <Folder Include="Factory\" />
     <Folder Include="VectorDb\" />
   </ItemGroup>
 

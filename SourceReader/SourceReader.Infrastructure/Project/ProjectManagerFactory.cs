@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace SourceReader.Infrastructure.Factory
+namespace SourceReader.Infrastructure.Project
 {
     // Why need this factory
     // Project Manager have 2 input is AstScanner and roootpath , i had inject astscanner in 

@@ -1,7 +1,7 @@
 using SourceReader.Core.Services.Project;
 using SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreParser;
 using SourceReader.Infrastructure.Analysis.AstAnalysis.CoreAst.CoreQuery;
-using SourceReader.Infrastructure.Factory;
+using SourceReader.Infrastructure.Project;
 using SourceReader.Infrastructure.WorkSpace;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +19,8 @@ builder.Services.AddSingleton<AstScanner>();
 //FileParserDi
 builder.Services.AddSingleton<FileParser>();
 builder.Services.AddSingleton<ParserPool>();
+builder.Services.AddSingleton<QueryRegistry>();
+//
 builder.Services.AddSingleton<QueryRegistry>();
 // Log
 builder.Services.AddLogging();

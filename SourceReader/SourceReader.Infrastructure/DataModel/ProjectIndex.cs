@@ -8,12 +8,12 @@ namespace SourceReader.Infrastructure.DataModel
     [MessagePackObject]
     public class ProjectIndex
     {
-        public ProjectIndex(string cachedPath)
+        public ProjectIndex(string _rootPath)
         {
-            CachedPath= cachedPath;
+            rootPath = _rootPath;
         }
 
-        [property: Key(0)] public string CachedPath{ get; set; }
+        [property: Key(0)] public string rootPath { get; set; }
         [property: Key(1)] public Dictionary<int, SRFileRecord> Files { get; set; } = new();
         [property: Key(2)] public Dictionary<int, SRImportRecord> Imports { get; set; } = new();
         /// <summary>

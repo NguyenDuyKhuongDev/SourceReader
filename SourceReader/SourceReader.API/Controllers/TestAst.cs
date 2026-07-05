@@ -22,6 +22,7 @@ namespace SourceReader.API.Controllers
             try
             {
                 var projectManager = await _workSpaceManager.GetOrCreateAsync(rootPath);
+                await projectManager.LoadIndexAsync(ct);
                 await projectManager.CachedProject(ct);
                 projectManager.StartScanAsync(ct);
             }
@@ -37,9 +38,15 @@ namespace SourceReader.API.Controllers
         {
             var projectManager = await _workSpaceManager.GetOrCreateAsync(rootPath);
 
+            await projectManager.LoadIndexAsync(ct);
             return projectManager._index;
         }
 
+        [HttpGet]
+        public List<Tuple<string, string>> GetProjectCacheds()
+        {
+            return _workSpaceManager._projectCacheds.ToList();
+        }
 
 
     }
